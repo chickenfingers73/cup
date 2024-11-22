@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customizable GIF, Clock, and Date</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            background-color: black; /* Set background to black */
+        }
+        #uploadContainer {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+        }
+        #gifContainer {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            display: none;
+        }
+        #gifContainer img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .box {
+            position: fixed;
+            z-index: 10;
+            background-color: white;
+            padding: 10px;
+            cursor: move;
+            font-size: 2.3rem;
+            font-weight: 600;
+            border-radius: 5px;
+            border: none;
+            user-select: none;
+            text-align: center; /* Ensures consistent alignment */
+            white-space: nowrap; /* Prevent text from wrapping */
+            display: flex;
+            align-items: center; /* Vertically center the text */
+        }
+        .alignable {
+            transform: translate(-50%, -50%); /* Center alignment */
+        }
+        #clockBox {
+            top: 50px;
+            left: 10px;
+            width: 220px;  /* Fixed width */
+        }
+        #dateBox {
+            top: 100px;
+            left: 10px;
+            width: auto;  /* Make the width auto to fit the content */
+            min-width: 150px; /* Set a minimum width to prevent squeezing */
+        }
+        @media (max-width: 600px) {
+            .box {
+                font-size: 1.4rem;  /* Adjusted for mobile */
+            }
+            #clockBox {
+                width: 180px;  /* Adjust width for mobile */
+            }
+            #dateBox {
+                font-size: 1.4rem;  /* Adjust font size for smaller screens */
+                min-width: 120px;  /* Minimum width for mobile */
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="uploadContainer">
+        <input type="file" id="uploadGif" accept="image/gif">
+    </div>
+
+    <div id="gifContainer">
+        <img id="uploadedGif" src="" alt="Uploaded GIF">
+    </div>
+
+    <div id="clockBox" class="box alignable">
+        <span id="clock"></span>
+        <span id="ampm"></span>
+    </div>
+
+    <div id="dateBox" class="box alignable">
+        <span id="date"></span>
+    </div>
+
+    <script>
+        // Function to get Chicago time considering Daylight Saving Time
+        function getChicagoTime() {
+            const now = new Date();
+            const chicagoDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+            return chicagoDate;
+        }
+
+        // Live clock and AM/PM function
+        function updateClock() {
+            const now = getChicagoTime();
+            let hours = now.getHours();
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            
+            hours = hours % 12 || 12; // Show "12" when the hour is 0 (12 AM/PM)
+
+            document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+            document.getElementById('ampm').textContent = ` ${ampm}`;
+        }
+
+        setInterval(updateClock, 1000);
+
+        // Date function (MM/DD/YYYY format)
+        function updateDate() {
+            const now = getChicagoTime();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            const year = now.getFullYear();
+            document.getElementById('date').textContent = `${month}/${day}/${year}`;
+        }
+
+        updateDate();
+
+        // GIF upload and display
+        document.getElementById('uploadGif').addEventListener('change', function (e) {
+            const gifFile = e.target.files[0];
+            if (gifFile) {
+                const gifURL = URL.createObjectURL(gifFile);
+                const gifImage = document.getElementById('uploadedGif');
+                gifImage.src = gifURL;
+                document.getElementById('gifContainer').style.display = 'block';
+            }
+        });
+
+        // Drag functionality for clock and date boxes (Desktop and Mobile)
+        function makeDraggable(element) {
+            let offsetX, offsetY, lastX, lastY;
+
+            const dragMouseDown = (event) => {
+                event.preventDefault();
+                lastX = event.clientX;
+                lastY = event.clientY;
+
+                document.onmousemove = dragElement;
+                document.onmouseup = stopDragging;
+            };
+
+            const dragElement = (event) => {
+                event.preventDefault();
+                const deltaX = event.clientX - lastX;
+                const deltaY = event.clientY - lastY;
+                lastX = event.clientX;
+                lastY = event.clientY;
+                element.style.left = `${element.offsetLeft + deltaX}px`;
+                element.style.top = `${element.offsetTop + deltaY}px`;
+
+                // Centerline alignment logic
+                alignCenters();
+            };
+
+            const stopDragging = () => {
+                document.onmousemove = null;
+                document.onmouseup = null;
+            };
+
+            const dragTouchStart = (event) => {
+                lastX = event.touches[0].clientX;
+                lastY = event.touches[0].clientY;
+
+                document.ontouchmove = dragTouchMove;
+                document.ontouchend = stopTouchDragging;
+            };
+
+            const dragTouchMove = (event) => {
+                const deltaX = event.touches[0].clientX - lastX;
+                const deltaY = event.touches[0].clientY - lastY;
+                lastX = event.touches[0].clientX;
+                lastY = event.touches[0].clientY;
+                element.style.left = `${element.offsetLeft + deltaX}px`;
+                element.style.top = `${element.offsetTop + deltaY}px`;
+
+                // Centerline alignment logic
+                alignCenters();
+            };
+
+            const stopTouchDragging = () => {
+                document.ontouchmove = null;
+                document.ontouchend = null;
+            };
+
+            element.onmousedown = dragMouseDown;
+            element.ontouchstart = dragTouchStart;
+        }
+
+        // Align the centers of alignable boxes if they are close
+        function alignCenters() {
+            const clockBox = document.getElementById('clockBox');
+            const dateBox = document.getElementById('dateBox');
+
+            const clockCenterY = clockBox.offsetTop + clockBox.offsetHeight / 2;
+            const dateCenterY = dateBox.offsetTop + dateBox.offsetHeight / 2;
+
+            // If centerlines are close, align them
+            if (Math.abs(clockCenterY - dateCenterY) <= 10) {
+                dateBox.style.top = `${clockBox.offsetTop + clockBox.offsetHeight / 2 - dateBox.offsetHeight / 2}px`;
+            }
+        }
+
+        makeDraggable(document.getElementById('clockBox'));
+        makeDraggable(document.getElementById('dateBox'));
+    </script>
+</body>
+</html>
